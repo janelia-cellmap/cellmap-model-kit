@@ -37,6 +37,7 @@ class CellmapModel:
         self._onnx_model = None
         self._pt_model = None
         self._ts_model = None
+        self._exported_model = None
 
     @property
     def metadata(self) -> ModelMetadata:
@@ -120,6 +121,54 @@ class CellmapModel:
             else:
                 self._ts_model = None
         return self._ts_model
+
+    @property
+    def exported_model(self):
+        """
+        If 'model.pt2' exists, lazily load the torch.export ExportedProgram.
+        Returns None if the file doesn't exist or PyTorch isn't installed.
+        """
+        if self._exported_model is None:
+            if torch is None:
+                return None
+            ep_path = os.path.join(self.folder_path, "model.pt2")
+            ep_path = os.path.normpath(ep_path)
+            if os.path.exists(ep_path):
+                self._exported_model = torch.export.load(ep_path)
+            else:
+                self._exported_model = None
+        return self._exported_model
+
+    def train(self):
+        """
+        Load a trainable nn.Module for finetuning.
+        Tries torch.export (model.pt2) with unflatten first, falls back to TorchScript.
+        Returns the model in train mode, or None if neither format is available.
+        """
+        if torch is None:
+            return None
+
+        # Try torch.export version first (unflatten to recover nn.Module hierarchy)
+        if self.exported_model is not None:
+            try:
+                model = torch.export.unflatten(self.exported_model)
+                model.train()
+                print(f"Loaded trainable model via torch.export + unflatten")
+                return model
+            except Exception as e:
+                print(f"Failed to unflatten torch.export model: {e}, falling back to TorchScript")
+
+        # Fall back to TorchScript
+        if self.ts_model is not None:
+            try:
+                self.ts_model.train()
+                print(f"Loaded trainable model via TorchScript")
+                return self.ts_model
+            except Exception as e:
+                print(f"Failed to set TorchScript model to train mode: {e}")
+
+        print("No trainable model format found (model.pt2 or model.ts)")
+        return None
 
     @property
     def readme(self) -> Optional[str]:

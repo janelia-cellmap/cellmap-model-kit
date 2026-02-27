@@ -1,6 +1,5 @@
 import json
-import click
-from typing import List, Optional
+from typing import List, Optional, get_origin, get_args
 from pydantic import BaseModel, Field
 import os
 import dcc.model_export.config as c
@@ -13,7 +12,7 @@ def get_export_folder():
     folder = os.getenv("DCC_EXPORT_FOLDER")
     if not folder:
         folder = input(
-            "Didn't found DCC_EXPORT_FOLDER, Please enter the export folder path: "
+            "Didn't find DCC_EXPORT_FOLDER, Please enter the export folder path: "
         )
         os.environ["DCC_EXPORT_FOLDER"] = folder
     return folder
@@ -39,171 +38,106 @@ class ModelMetadata(BaseModel):
     version: Optional[str] = Field("1.0.0", description="Version of the model")
 
 
+def _format_list(values):
+    if values is None:
+        return "N/A"
+    return ", ".join(str(v) for v in values)
+
+
 def generate_readme(metadata: ModelMetadata):
-    readme_content = f"""
-    # {metadata.model_name} Model
-    iteration: {metadata.iteration}
+    readme_content = f"""# {metadata.model_name or "Unnamed"} Model
+iteration: {metadata.iteration}
 
-    ## Description
-    {metadata.description}
+## Description
+{metadata.description or "N/A"}
 
-    ## Model Details
-    - **Model Type:** {metadata.model_type}
-    - **Framework:** {metadata.framework}
-    - **Spatial Dimensions:** {metadata.spatial_dims}
-    - **Input Channels:** {metadata.in_channels}
-    - **Output Channels:** {metadata.out_channels}
-    - **Channel Names:** {', '.join(metadata.channels_names)}
-    - **Input Shape:** {', '.join(map(str, metadata.input_shape))}
-    - **Output Shape:** {', '.join(map(str, metadata.output_shape))}
+## Model Details
+- **Model Type:** {metadata.model_type or "N/A"}
+- **Framework:** {metadata.framework or "N/A"}
+- **Spatial Dimensions:** {metadata.spatial_dims}
+- **Input Channels:** {metadata.in_channels}
+- **Output Channels:** {metadata.out_channels}
+- **Channel Names:** {_format_list(metadata.channels_names)}
+- **Input Shape:** {_format_list(metadata.input_shape)}
+- **Output Shape:** {_format_list(metadata.output_shape)}
+- **Inference Input Shape:** {_format_list(metadata.inference_input_shape)}
+- **Inference Output Shape:** {_format_list(metadata.inference_output_shape)}
+- **Input Voxel Size:** {_format_list(metadata.input_voxel_size)}
+- **Output Voxel Size:** {_format_list(metadata.output_voxel_size)}
 
-    ## Author
-    {metadata.author}
+## Author
+{metadata.author or "N/A"}
 
-    ## Version
-    {metadata.version}
-    """
+## Version
+{metadata.version}
+"""
     return readme_content
 
 
 def export_metadata(metadata: ModelMetadata, overwrite: bool = False):
-    
     export_folder = get_export_folder()
     result_folder = os.path.join(export_folder, metadata.model_name)
     if os.path.exists(result_folder) and not overwrite:
-        result = click.confirm(
-            f"Folder {result_folder} already exists. Do you want to overwrite it?",
-        )
-        if not result:
+        answer = input(f"Folder {result_folder} already exists. Overwrite? [y/N]: ")
+        if answer.lower() not in ("y", "yes"):
             return
     metadata = prompt_for_missing_fields(metadata)
     os.makedirs(result_folder, exist_ok=True)
     output_file = os.path.join(result_folder, "metadata.json")
     with open(output_file, "w") as f:
-        json.dump(metadata.dict(), f, indent=4)
-    click.echo(f"Metadata saved to {output_file}")
+        json.dump(metadata.model_dump(), f, indent=4)
+    print(f"Metadata saved to {output_file}")
     readme = generate_readme(metadata)
     readme_file = os.path.join(result_folder, "README.md")
     with open(readme_file, "w") as f:
         f.write(readme)
-    click.echo(f"README saved to {readme_file}")
+    print(f"README saved to {readme_file}")
+
+
+def _is_list_annotation(annotation) -> bool:
+    """Check if a type annotation is Optional[List[...]]."""
+    # Optional[X] is Union[X, None], so dig into it
+    origin = get_origin(annotation)
+    if origin is list or origin is List:
+        return True
+    args = get_args(annotation)
+    return any(get_origin(a) is list or get_origin(a) is List for a in args)
+
+
+def _get_list_element_type(annotation):
+    """Get the element type of Optional[List[T]] -> T."""
+    origin = get_origin(annotation)
+    if origin is list or origin is List:
+        args = get_args(annotation)
+        return args[0] if args else str
+    for a in get_args(annotation):
+        inner_origin = get_origin(a)
+        if inner_origin is list or inner_origin is List:
+            inner_args = get_args(a)
+            return inner_args[0] if inner_args else str
+    return str
 
 
 def prompt_for_missing_fields(metadata: ModelMetadata):
-    for field_name, field in metadata.__fields__.items():
+    for field_name, field_info in ModelMetadata.model_fields.items():
         value = getattr(metadata, field_name)
         if value is None:
             try:
-                prompt_text = (
-                field.description or f"Enter {field_name.replace('_', ' ')}"
-                )
+                prompt_text = field_info.description or f"Enter {field_name.replace('_', ' ')}"
 
-                if field_name in ["channels_names", "input_shape", "output_shape"]:
-                    user_input = click.prompt(prompt_text, type=str)
-                    if field_name == "channels_names":
+                if _is_list_annotation(field_info.annotation):
+                    user_input = input(f"{prompt_text}: ")
+                    elem_type = _get_list_element_type(field_info.annotation)
+                    if elem_type is str:
                         value = [item.strip() for item in user_input.split(",")]
                     else:
-                        value = [int(item) for item in user_input.split(",")]
-                elif field.type_ == int:
-                    value = click.prompt(prompt_text, type=int)
+                        value = [elem_type(item.strip()) for item in user_input.split(",")]
+                elif field_info.annotation in (int, Optional[int]):
+                    value = int(input(f"{prompt_text}: "))
                 else:
-                    value = click.prompt(prompt_text, type=str)
+                    value = input(f"{prompt_text}: ")
                 setattr(metadata, field_name, value)
             except Exception as e:
-                raise Exception(f"Field {field_name} is missing a description. {e}")
+                raise Exception(f"Error prompting for field {field_name}: {e}")
 
     return metadata
-
-
-@click.command()
-@click.option("--model_name", prompt="Enter model name", type=str)
-@click.option("--model_type", prompt="Enter model type (UNet/DenseNet121)", type=str)
-@click.option(
-    "--framework", prompt="Enter framework (MONAI/PyTorch)", type=str, default="Pytorch"
-)
-@click.option(
-    "--spatial_dims", prompt="Enter spatial dimensions (2 or 3)", type=int, default=3
-)
-@click.option(
-    "--in_channels", prompt="Enter number of input channels", type=int, default=1
-)
-@click.option(
-    "--out_channels", prompt="Enter number of output channels", type=int, default=2
-)
-@click.option(
-    "--channels_names",
-    prompt="Enter channel names as comma-separated values (e.g., 'CT, PET')",
-    type=str,
-)
-@click.option(
-    "--input_shape",
-    prompt="Enter input shape as comma-separated values (e.g., 1,1,96,96,96)",
-    type=str,
-)
-@click.option(
-    "--output_shape",
-    prompt="Enter output shape as comma-separated values (e.g., 1,2,96,96,96)",
-    type=str,
-)
-@click.option(
-    "--author",
-    prompt="Enter model author",
-    type=str,
-    default="",
-)
-@click.option(
-    "--description",
-    prompt="Enter model description",
-    type=str,
-    default="",
-)
-@click.option(
-    "--version",
-    prompt="Enter model version",
-    type=str,
-    default="1.0.0",
-)
-def generate_metadata(
-    model_name,
-    model_type,
-    framework,
-    spatial_dims,
-    in_channels,
-    out_channels,
-    channels_names,
-    input_shape,
-    output_shape,
-    author,
-    description,
-    version,
-):
-    input_shape = tuple(map(int, input_shape.split(",")))  # Convert input to tuple
-    output_shape = tuple(map(int, output_shape.split(",")))  # Convert output to tuple
-    channels_names = channels_names.split(",")
-
-    # Generate metadata
-    metadata = {
-        "model_name": model_name,
-        "model_type": model_type,
-        "framework": framework,
-        "spatial_dims": spatial_dims,
-        "input_shape": input_shape,
-        "output_shape": output_shape,
-        "in_channels": in_channels,
-        "out_channels": out_channels,
-        "channels_names": channels_names,
-        "author": author,
-        "description": description,
-        "version": version,
-    }
-
-    # Save metadata to JSON file
-    output_file = f"{model_name}_metadata.json"
-    with open(output_file, "w") as f:
-        json.dump(metadata, f, indent=4)
-
-    click.echo(f"Metadata saved to {output_file}")
-
-
-if __name__ == "__main__":
-    generate_metadata()
