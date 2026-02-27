@@ -5,20 +5,34 @@ import os
 omnx_version = 17
 
 
-def export_torch_model(model, input_shape, folder_result):
+def export_torch_model(model, input_shape, folder_result, metadata=None):
     if not os.path.exists(folder_result):
         os.makedirs(folder_result)
     model.eval()
     print(f"Exporting model to {folder_result}")
+
+    if metadata is not None:
+        from .generate_metadata import export_metadata
+        export_metadata(metadata)
     pt_file = os.path.join(folder_result, "model.pt")
     onnx_file = os.path.join(folder_result, "model.onnx")
     ts_file = os.path.join(folder_result, "model.ts")
+    ep_file = os.path.join(folder_result, "model.pt2")
     try:
-        # Export to TorchScript
+        # Export to PyTorch pickle
         torch.save(model, pt_file)
         print(f"Model saved to {pt_file}")
     except Exception as e:
-        print(f"Error exporting to TorchScript: {e}")
+        print(f"Error saving model: {e}")
+
+    try:
+        # Export via torch.export (ExportedProgram)
+        dummy_input = torch.rand(input_shape)
+        exported = torch.export.export(model, (dummy_input,))
+        torch.export.save(exported, ep_file)
+        print(f"Model saved to {ep_file}")
+    except Exception as e:
+        print(f"Error exporting with torch.export: {e}")
 
     try:
         dummy_input = torch.rand(input_shape)

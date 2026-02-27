@@ -3,13 +3,13 @@ marwan_models = {
     # "v21_mito_attention_finetuned_distances_8nm_mito_jrc_mus-livers_mito_8nm_attention-upsample-unet_default_one_label_1":345000,
           "v22_peroxisome_funetuning_best_v20_1e4_finetuned_distances_8nm_peroxisome_jrc_mus-livers_peroxisome_8nm_attention-upsample-unet_default_one_label_finetuning_0":45000}
 
-from dcc.model_export.dacapo_model import export_dacapo_model
+from cellmap_model_kit.model_export.dacapo_model import export_dacapo_model
 
 # %%
-import dcc.model_export.config as c
-c.DCC_EXPORT_FOLDER = "/groups/cellmap/cellmap/zouinkhim/models/cellmap/marwan"
+import cellmap_model_kit.model_export.config as c
+c.EXPORT_FOLDER = "/groups/cellmap/cellmap/zouinkhim/models/cellmap/marwan"
 import os
-os.chdir(c.DCC_EXPORT_FOLDER)
+os.chdir(c.EXPORT_FOLDER)
 #%%
 for k,v in marwan_models.items():
     export_dacapo_model(k,v)
@@ -22,7 +22,7 @@ import numpy as np
 
 # Path to your ONNX model
 k = list(marwan_models.keys())[0]
-onnx_file = os.path.join(c.DCC_EXPORT_FOLDER,k,"model.onnx")
+onnx_file = os.path.join(c.EXPORT_FOLDER,k,"model.onnx")
 print(f"Loading model from {onnx_file}")
 #%%
 
@@ -49,7 +49,7 @@ print("Inference result shape:", np.array(result).shape)
 # %%
 import torch
 
-model_path = os.path.join(c.DCC_EXPORT_FOLDER,k,"model.ts")
+model_path = os.path.join(c.EXPORT_FOLDER,k,"model.ts")
 # model_path = "model.ts"
 model = torch.jit.load(model_path)
 

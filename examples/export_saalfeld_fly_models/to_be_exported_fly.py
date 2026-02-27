@@ -2,12 +2,12 @@
 import torch
 from fly_organelles.model import StandardUnet
 import numpy as np
-from dcc.model_export.generate_metadata import ModelMetadata, export_metadata, get_export_folder
-from dcc.model_export.export_model import export_torch_model
-import dcc.model_export.config as c
-c.DCC_EXPORT_FOLDER = "/groups/cellmap/cellmap/zouinkhim/models/saalfeldlab/fly"
+from cellmap_model_kit.model_export.generate_metadata import ModelMetadata, export_metadata, get_export_folder
+from cellmap_model_kit.model_export.export_model import export_torch_model
+import cellmap_model_kit.model_export.config as c
+c.EXPORT_FOLDER = "/groups/cellmap/cellmap/zouinkhim/models/saalfeldlab/fly"
 import os
-os.chdir(c.DCC_EXPORT_FOLDER)
+os.chdir(c.EXPORT_FOLDER)
 
 #%%
 models = {"run07":{700000:"/nrs/saalfeld/heinrichl/fly_organelles/run07/model_checkpoint_700000",

@@ -1,9 +1,6 @@
-from dacapo.experiments.run import Run
-from dacapo.store.create_store import create_config_store, create_weights_store
 from .generate_metadata import ModelMetadata, export_metadata, get_export_folder
 from .export_model import export_torch_model
 import os
-from funlib.geometry import Coordinate
 
 
 def cli_export_dacapo_model():
@@ -13,6 +10,9 @@ def cli_export_dacapo_model():
 
 
 def export_dacapo_model(run_name: str, iteration: int):
+    from dacapo.experiments.run import Run
+    from dacapo.store.create_store import create_config_store, create_weights_store
+    from funlib.geometry import Coordinate
 
     config_store = create_config_store()
     run = Run(config_store.retrieve_run_config(run_name))
