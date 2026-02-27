@@ -1,12 +1,6 @@
-# DCC - DaCapo CellMap Config
+# CellMap Model Kit
 
-Export PyTorch models to multiple portable formats for inference and finetuning.
-
-## Installation
-
-```bash
-pip install -e .
-```
+Export, package, and load PyTorch models for CellMap.
 
 ## Export Formats
 
@@ -26,10 +20,10 @@ Each exported model directory contains:
 ### 1. Export a DaCapo model
 
 ```python
-import dcc.model_export.config as c
-c.DCC_EXPORT_FOLDER = "/path/to/export/folder"
+import cellmap_model_kit.model_export.config as c
+c.EXPORT_FOLDER = "/path/to/export/folder"
 
-from dcc.model_export.dacapo_model import export_dacapo_model
+from cellmap_model_kit.model_export.dacapo_model import export_dacapo_model
 
 export_dacapo_model("my_run_name", iteration=100000)
 ```
@@ -38,12 +32,12 @@ export_dacapo_model("my_run_name", iteration=100000)
 
 ```python
 import torch
-import dcc.model_export.config as c
-from dcc.model_export.generate_metadata import ModelMetadata, get_export_folder
-from dcc.model_export.export_model import export_torch_model
+import cellmap_model_kit.model_export.config as c
+from cellmap_model_kit.model_export.generate_metadata import ModelMetadata, get_export_folder
+from cellmap_model_kit.model_export.export_model import export_torch_model
 import os
 
-c.DCC_EXPORT_FOLDER = "/path/to/export/folder"
+c.EXPORT_FOLDER = "/path/to/export/folder"
 
 # Load your model
 model = ...  # any torch.nn.Module
@@ -76,7 +70,7 @@ export_torch_model(model, input_shape, os.path.join(get_export_folder(), "my_mod
 ### 3. Load an exported model for inference
 
 ```python
-from dcc.model_export.cellmap_model import CellmapModel
+from cellmap_model_kit.model_export.cellmap_model import CellmapModel
 
 model = CellmapModel("/path/to/export/folder/my_model")
 
@@ -93,7 +87,7 @@ exported = model.exported_model         # torch.export ExportedProgram
 ### 4. Load an exported model for finetuning
 
 ```python
-from dcc.model_export.cellmap_model import CellmapModel
+from cellmap_model_kit.model_export.cellmap_model import CellmapModel
 
 cellmap_model = CellmapModel("/path/to/export/folder/my_model")
 model = cellmap_model.train()

@@ -1,8 +1,8 @@
 #%%
-import dcc.model_export.config as c
-c.DCC_EXPORT_FOLDER = "/groups/cellmap/cellmap/zouinkhim/models/cellmap/marwan"
+import cellmap_model_kit.model_export.config as c
+c.EXPORT_FOLDER = "/groups/cellmap/cellmap/zouinkhim/models/cellmap/marwan"
 import os
-os.chdir(c.DCC_EXPORT_FOLDER)
+os.chdir(c.EXPORT_FOLDER)
 #%%
 run_name =  "v21_mito_attention_finetuned_distances_8nm_mito_jrc_mus-livers_mito_8nm_attention-upsample-unet_default_one_label_1"
 from dacapo.store.create_store import create_config_store

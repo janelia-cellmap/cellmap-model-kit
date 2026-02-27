@@ -2,19 +2,19 @@ import json
 from typing import List, Optional, get_origin, get_args
 from pydantic import BaseModel, Field
 import os
-import dcc.model_export.config as c
+import cellmap_model_kit.model_export.config as c
 
 
 def get_export_folder():
-    if c.DCC_EXPORT_FOLDER is not None:
-        return c.DCC_EXPORT_FOLDER
-    print("DCC_EXPORT_FOLDER is not set in the config, checking environment variables...")
-    folder = os.getenv("DCC_EXPORT_FOLDER")
+    if c.EXPORT_FOLDER is not None:
+        return c.EXPORT_FOLDER
+    print("EXPORT_FOLDER is not set in the config, checking environment variables...")
+    folder = os.getenv("EXPORT_FOLDER")
     if not folder:
         folder = input(
-            "Didn't find DCC_EXPORT_FOLDER, Please enter the export folder path: "
+            "Didn't find EXPORT_FOLDER, Please enter the export folder path: "
         )
-        os.environ["DCC_EXPORT_FOLDER"] = folder
+        os.environ["EXPORT_FOLDER"] = folder
     return folder
 
 
